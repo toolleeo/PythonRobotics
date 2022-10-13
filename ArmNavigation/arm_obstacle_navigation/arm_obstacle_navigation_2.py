@@ -13,8 +13,8 @@ import sys
 plt.ion()
 
 # Simulation parameters
-M = 120
-obstacles = [[1.75, 0.75, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.7]]
+M = 50
+obstacles = [[1.75, 0.3, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.7]]
 
 
 def press(event):
@@ -31,7 +31,7 @@ def main():
     arm = NLinkArm(link_length, initial_link_angle)
     # (x, y) co-ordinates in the joint space [cell]
     start = (int(10 / 100 * M), int(50 / 100 * M))
-    goal = (int(58 / 100 * M), int(59 / 100 * M))
+    goal = (int(54 / 100 * M), int(60 / 100 * M))
     grid = get_occupancy_grid(arm, obstacles)
     route = astar_torus(grid, start, goal)
     if len(route) >= 0:
