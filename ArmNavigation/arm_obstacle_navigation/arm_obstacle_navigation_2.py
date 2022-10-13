@@ -30,8 +30,8 @@ def main():
     initial_link_angle = [0, 0]
     arm = NLinkArm(link_length, initial_link_angle)
     # (x, y) co-ordinates in the joint space [cell]
-    start = (10, 50)
-    goal = (58, 56)
+    start = (int(10 / 100 * M), int(50 / 100 * M))
+    goal = (int(58 / 100 * M), int(59 / 100 * M))
     grid = get_occupancy_grid(arm, obstacles)
     route = astar_torus(grid, start, goal)
     if len(route) >= 0:
