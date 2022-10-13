@@ -13,7 +13,7 @@ import sys
 plt.ion()
 
 # Simulation parameters
-M = 100
+M = 120
 obstacles = [[1.75, 0.75, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.7]]
 
 
