@@ -13,15 +13,23 @@ import sys
 plt.ion()
 
 # Simulation parameters
-M = 50
+M = 50   # number of squares to divide the x-y axes of the configuration space
+# M = 200   # number of squares to divide the x-y axes of the configuration space
+delay = 0.5   # delay between consecutive frames in the simulation
 obstacles = [[1.75, 0.3, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.7]]
+
+
+in_pause = False
 
 
 def press(event):
     """Exit from the simulation."""
+    global in_pause
     if event.key == 'q' or event.key == 'Q':
         print('Quitting upon request.')
         sys.exit(0)
+    if event.key == ' ':
+        in_pause = not in_pause
 
 
 def main():
@@ -39,6 +47,7 @@ def main():
 
 
 def animate(grid, arm, route):
+    global in_pause
     fig, axs = plt.subplots(1, 2)
     fig.canvas.mpl_connect('key_press_event', press)
     colors = ['white', 'black', 'red', 'pink', 'yellow', 'green', 'orange']
@@ -59,7 +68,12 @@ def animate(grid, arm, route):
         plt.show()
         # Uncomment here to save the sequence of frames
         # plt.savefig('frame{:04d}.png'.format(i))
-        plt.pause(0.1)
+        while in_pause:
+            plt.pause(delay)
+        plt.pause(delay)
+    in_pause = True
+    while in_pause:
+        plt.pause(delay)
 
 
 def detect_collision(line_seg, circle):
