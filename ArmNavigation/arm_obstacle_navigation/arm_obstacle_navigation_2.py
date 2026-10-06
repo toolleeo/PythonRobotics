@@ -294,7 +294,7 @@ class NLinkArm(object):
 
         for obstacle in obstacles:
             circle = myplt.Circle(
-                (obstacle[0], obstacle[1]), radius=0.5 * obstacle[2], fc='k')
+                (obstacle[0], obstacle[1]), radius=obstacle[2], fc='k')
             myplt.gca().add_patch(circle)
 
         for i in range(self.n_links + 1):
