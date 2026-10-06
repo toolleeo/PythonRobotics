@@ -1,0 +1,214 @@
+"""
+Obstacle navigation using A* on a toroidal grid
+
+Author: Daniel Ingram (daniel-s-ingram)
+        Tullio Facchinetti (tullio.facchinetti@unipv.it)
+"""
+from math import pi
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import from_levels_and_colors
+import sys
+
+plt.ion()
+
+# Simulation parameters
+# number of squares to divide the x-y axes of the configuration space
+M = 200
+M = 50
+M = 10
+delay = 0.5   # delay between consecutive frames in the simulation
+obstacles = [[1.75, 0.3, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.7]]
+
+
+in_pause = False
+
+
+def press(event):
+    """Exit from the simulation."""
+    global in_pause
+    if event.key == 'q' or event.key == 'Q':
+        print('Quitting upon request.')
+        sys.exit(0)
+    if event.key == ' ':
+        in_pause = not in_pause
+
+
+def main():
+    # Arm geometry in the working space
+    link_length = [0.5, 1.5]
+    initial_link_angle = [0, 0]
+    arm = NLinkArm(link_length, initial_link_angle)
+    # (x, y) co-ordinates in the joint space [cell]
+    start = (int(10 / 100 * M), int(50 / 100 * M))
+    goal = (int(54 / 100 * M), int(60 / 100 * M))
+    animate(arm)
+
+
+def animate(arm):
+    global in_pause
+    fig, axs = plt.subplots(1, 2)
+    fig.canvas.mpl_connect('key_press_event', press)
+    colors = ['white', 'black', 'red', 'pink', 'yellow', 'green', 'orange']
+    levels = [0, 1, 2, 3, 4, 5, 6, 7]
+    cmap, norm = from_levels_and_colors(levels, colors)
+    grid = [[0 for _ in range(M)] for _ in range(M)]
+    theta_list = np.linspace(-pi, pi, M, endpoint=False)
+    for i in range(M):
+        for j in range(M):
+            arm.update_joints([theta_list[i], theta_list[j]])
+            points = arm.points
+            collision_detected = False
+            for k in range(len(points) - 1):
+                for obstacle in obstacles:
+                    line_seg = [points[k], points[k + 1]]
+                    collision_detected = detect_collision(line_seg, obstacle)
+                    if collision_detected:
+                        break
+                if collision_detected:
+                    break
+            if collision_detected:
+                grid[i][j] = 1
+            else:
+                grid[i][j] = 5
+            plt.subplot(1, 2, 1)
+            #grid[node] = 6
+            plt.cla()
+            plt.imshow(grid, cmap=cmap, norm=norm, interpolation=None)
+            arm.update_joints([theta_list[i], theta_list[j]])
+            plt.subplot(1, 2, 2)
+            arm.plot_arm(plt, obstacles=obstacles)
+            plt.xlim(-2.0, 2.0)
+            plt.ylim(-3.0, 3.0)
+            plt.show()
+            # Uncomment here to save the sequence of frames
+            # plt.savefig('frame{:04d}.png'.format(i))
+            while in_pause:
+                plt.pause(delay)
+            plt.pause(delay)
+    in_pause = True
+    while in_pause:
+        plt.pause(delay)
+
+
+def detect_collision(line_seg, circle):
+    """
+    Determines whether a line segment (arm link) is in contact
+    with a circle (obstacle).
+    Credit to: http://doswa.com/2009/07/13/circle-segment-intersectioncollision.html
+    Args:
+        line_seg: List of coordinates of line segment endpoints e.g. [[1, 1], [2, 2]]
+        circle: List of circle coordinates and radius e.g. [0, 0, 0.5] is a circle centered
+                at the origin with radius 0.5
+
+    Returns:
+        True if the line segment is in contact with the circle
+        False otherwise
+    """
+    a_vec = np.array([line_seg[0][0], line_seg[0][1]])
+    b_vec = np.array([line_seg[1][0], line_seg[1][1]])
+    c_vec = np.array([circle[0], circle[1]])
+    radius = circle[2]
+    line_vec = b_vec - a_vec
+    line_mag = np.linalg.norm(line_vec)
+    circle_vec = c_vec - a_vec
+    proj = circle_vec.dot(line_vec / line_mag)
+    if proj <= 0:
+        closest_point = a_vec
+    elif proj >= line_mag:
+        closest_point = b_vec
+    else:
+        closest_point = a_vec + line_vec * proj / line_mag
+    if np.linalg.norm(closest_point - c_vec) > radius:
+        return False
+    return True
+
+
+def get_occupancy_grid(arm, obstacles):
+    """
+    Discretizes joint space into M values from -pi to +pi
+    and determines whether a given coordinate in joint space
+    would result in a collision between a robot arm and obstacles
+    in its environment.
+
+    Args:
+        arm: An instance of NLinkArm
+        obstacles: A list of obstacles, with each obstacle defined as a list
+                   of xy coordinates and a radius. 
+
+    Returns:
+        Occupancy grid in joint space
+    """
+    grid = [[0 for _ in range(M)] for _ in range(M)]
+    theta_list = [2 * i * pi / M for i in range(-M // 2, M // 2 + 1)]
+    for i in range(M):
+        for j in range(M):
+            arm.update_joints([theta_list[i], theta_list[j]])
+            points = arm.points
+            collision_detected = False
+            for k in range(len(points) - 1):
+                for obstacle in obstacles:
+                    line_seg = [points[k], points[k + 1]]
+                    collision_detected = detect_collision(line_seg, obstacle)
+                    if collision_detected:
+                        break
+                if collision_detected:
+                    break
+            grid[i][j] = int(collision_detected)
+    return np.array(grid)
+
+
+class NLinkArm(object):
+    """
+    Class for controlling and plotting a planar arm with an arbitrary number of links.
+    """
+
+    def __init__(self, link_lengths, joint_angles):
+        self.n_links = len(link_lengths)
+        if self.n_links != len(joint_angles):
+            raise ValueError()
+
+        self.link_lengths = np.array(link_lengths)
+        self.joint_angles = np.array(joint_angles)
+        self.points = [[0, 0] for _ in range(self.n_links + 1)]
+
+        self.lim = sum(link_lengths)
+        self.update_points()
+
+    def update_joints(self, joint_angles):
+        self.joint_angles = joint_angles
+        self.update_points()
+
+    def update_points(self):
+        for i in range(1, self.n_links + 1):
+            self.points[i][0] = self.points[i - 1][0] + \
+                self.link_lengths[i - 1] * \
+                np.cos(np.sum(self.joint_angles[:i]))
+            self.points[i][1] = self.points[i - 1][1] + \
+                self.link_lengths[i - 1] * \
+                np.sin(np.sum(self.joint_angles[:i]))
+
+        self.end_effector = np.array(self.points[self.n_links]).T
+
+    def plot_arm(self, myplt, obstacles=[]):  # pragma: no cover
+        myplt.cla()
+
+        for obstacle in obstacles:
+            circle = myplt.Circle(
+                (obstacle[0], obstacle[1]), radius=obstacle[2], fc='k')
+            myplt.gca().add_patch(circle)
+
+        for i in range(self.n_links + 1):
+            if i is not self.n_links:
+                myplt.plot([self.points[i][0], self.points[i + 1][0]],
+                           [self.points[i][1], self.points[i + 1][1]], 'r-')
+            myplt.plot(self.points[i][0], self.points[i][1], 'k.')
+
+        myplt.xlim([-self.lim, self.lim])
+        myplt.ylim([-self.lim, self.lim])
+        myplt.draw()
+        # myplt.pause(1e-5)
+
+
+if __name__ == '__main__':
+    main()
