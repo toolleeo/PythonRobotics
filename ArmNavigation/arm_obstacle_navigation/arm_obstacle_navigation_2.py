@@ -13,8 +13,10 @@ import sys
 plt.ion()
 
 # Simulation parameters
-M = 50   # number of squares to divide the x-y axes of the configuration space
-# M = 200   # number of squares to divide the x-y axes of the configuration space
+# number of squares to divide the x-y axes of the configuration space
+M = 40
+M = 200
+M = 50
 delay = 0.5   # delay between consecutive frames in the simulation
 obstacles = [[1.75, 0.3, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.7]]
 
